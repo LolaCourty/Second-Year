@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Global Vroum Controller</title>
+	<script src="static/vui.js"></script>
+	<!-- <script src="static/vue.min.js"></script>-->
+	<script src="static/vue.min.js"></script>
+	<style>
+		body,html{
+			padding: 0;
+			margin: 0;
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			font-family: "Helvetica";
+		}
+		.device{
+			display: flex;
+			width: 100%;
+			height: 100%;
+		}
+		.controller{
+			width: 100%;
+			height: 100%;
+			padding: 10px;
+			display: flex;
+		}
+		.controller > *{
+			width: 100%;
+		}
+
+		.video_stream{
+			width: 100%;
+			height: 100%;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			background-color: black;
+		}
+		.video_stream > img{
+			width: 100%;
+		}
+		.spin{ /* Used for loading animation of camera */
+			animation:spin 4s linear infinite;
+		}
+		@keyframes spin { 
+		    100% { 
+		        -webkit-transform: rotate(360deg); 
+		        transform:rotate(360deg); 
+		    } 
+		}
+
+
+		.keyboard{
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			flex-direction: column;
+		}
+		.key{
+			background-color: white;
+			padding: 5px 8px;
+			margin: 5px;
+			outline: none;
+			font-size: 20px;
+			transition: 200ms;
+
+			background: #fff;
+			color: #000;
+			border: none;
+			border-radius: 3px;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			text-decoration: none;
+			outline: none;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+		}
+		button:active,.active{
+			background-color: blue;
+			transition: 200ms;
+			transform: scale(.9);
+		}
+		#minimap{
+			width: 50%;
+		}
+		#minimap_holder{
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+		#app{
+			height: 100%;
+			width: 100%;
+		}
+
+		.field{
+			padding: 10px;
+		}
+
+		.field > span{
+			display: block; /* CSS is awesome !  */
+		}
+		.field > input , .field > select{
+			padding: 10px 10px 10px 5px;
+			border: none;
+			border-radius: 0;
+			background-color: #eee;
+			border-bottom: 1px solid #333;
+		}
+		.field > button{
+			background: #fff;
+			color: #000;
+			border: none;
+			padding: 10px 20px;
+			border-radius: 3px;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			text-decoration: none;
+			outline: none;
+			box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+		}
+		pre{
+			display: inline;
+		}
+		.values{
+			overflow-y: auto;
+			height: 100%;
+		}
+	</style>
+</head>
+<body>
+
+	<div id="app">
+
+	<div class="device">
+		<div class="controller">
+			<div class="values">
+				<div class="field">
+					<span>IP: <pre>{{ raspberry_ip_u }}</pre></span>
+					<input v-model="raspberry_ip" placeholder="Don't forget the port"></input>
+					<button v-on:click="connect()">Connect</button>
+				</div>
+				<div class="field"> 
+					<span>Status: {{ status_u }}</span>
+				</div>
+
+				<div class="field">
+					<span>Behavior mode: <pre>{{ move_mode_u }}</pre></span>
+					<select v-model="move_mode">
+						<option value="0">Follow grid (0)</option>
+						<option value="1">Follow lines (1)</option>
+						<option value="2">Follow road (2)</option>
+					</select>
+					<button v-on:click="update_move_mode">Update</button>
+				</div>
+
+
+				<div class="field">
+					<span>Going to: <pre>{{ xtarget_u+","+ytarget_u }}</pre></span>
+					<input v-model="raw_target" type="text"/>
+					<button
+						v-on:click="start_auto"
+					>{{status_u != "Running" ? "Let's Go" : "Cancel movement"}}</button>
+				</div>
+
+				<div>
+					<h2>Control parameters</h2>
+					<div class="field">
+						<span>Speed: <pre>{{ speed_u }}</pre></span>
+						<input v-model="speed" step="0.01" type="number"/>
+						<button v-on:click="update_speed">Update</button>
+					</div>
+					<div class="field">
+						<span>Manual precision: (in seconds, higher = less precise) <pre>{{ manualp_u }}</pre></span>
+						<input v-model="manualp" type="number"/>
+						<button v-on:click="update_manualp">Update</button>
+					</div>
+					<div class="field">
+						<span>Leave circuit: (road mode only) <pre>{{ leave_circuit_u }}</pre></span>
+						<select v-model="leave_circuit">
+							<option value="0">False</option>
+							<option value="1">True</option>
+						</select>
+						<button v-on:click="update_leave_circuit">Update</button>
+					</div>
+					<div class="field">
+						<span>Steer ratio: <pre>{{ steer_ratio_u }}</pre></span>
+						<input v-model="steer_ratio" type="number"/>
+						<button v-on:click="update_steer_ratio">Update</button>
+					</div>
+					<div class="field">
+						<span>Zone top: <pre>{{ zone_top_u }}</pre></span>
+						<input v-model="zone_top" type="number"/>
+						<button v-on:click="update_zone_top">Update</button>
+					</div>
+					<div class="field">
+						<span>Zone bottom: <pre>{{ zone_bottom_u }}</pre></span>
+						<input v-model="zone_bottom" type="number"/>
+						<button v-on:click="update_zone_bottom">Update</button>
+					</div>
+					<div class="field">
+						<span>Zone width: <pre>{{ zone_width_u }}</pre></span>
+						<input v-model="zone_width" type="number"/>
+						<button v-on:click="update_zone_width">Update</button>
+					</div>
+				</div>
+
+			</div>
+
+			<div>
+				<div id="minimap_holder">
+					<canvas id="minimap" width="400" height="400"></canvas>
+				</div>
+
+				<div class='keyboard'>
+					<div>
+						<button id="button_forward" class='key'>Z</button>
+					</div>
+					<div>
+						<button id="button_left" class='key'>Q</button>
+						<button id="button_backward" class='key'>S</button>
+						<button id="button_right" class='key'>D</button>
+					</div>
+				</div>
+			</div>
+
+		</div>
+		<div class="video_stream">
+			<img id="cam_img" class="spin" src="/static/loading.png"/>
+		</div>
+	</div>
+
+	</div>
+
+	<script type="text/javascript">
+		let data = {
+			// all variables are here:*
+
+			raspberry_ip_u: "Not set", // let's use a sane default.
+			raspberry_ip: "192.168.137.62:5000",
+
+			status_u:"Not connected",
+
+			xtarget_u: -1,
+			ytarget_u: -1,
+			raw_target:"",
+
+			speed: 100,
+			speed_u:-1,
+			target_distance: 0,
+			target_distance_u: -1,
+			steer_ratio: 0,
+			steer_ratio_u: -1,
+			zone_top: -1,
+			zone_top_u: -1,
+			zone_bottom: -1,
+			zone_bottom_u: -1,
+			zone_width: -1,
+			zone_width_u: -1,
+
+			leave_circuit: 0,
+			leave_circuit_u: "Not connected",
+
+			manualp: 0.5,
+			manualp_u: 0.5, 
+
+			move_mode_u: 0,
+			move_mode: 0
+
+		};
+
+		async function init_data(){
+			// fetch data to display the current status:
+			data.speed_u = await (await fetch("/speed")).text();
+			data.target_distance_u = await (await fetch("/target_distance")).text();
+			data.steer_ratio_u = await (await fetch("/steer_ratio")).text();
+			data.zone_top_u = await (await fetch("/zone_top")).text();
+			data.zone_bottom_u = await (await fetch("/zone_bottom")).text();
+			data.zone_width_u = await (await fetch("/zone_width")).text();
+			data.manualp_u = await (await fetch("/manualp")).text();
+			data.move_mode_u = await (await fetch("/mode")).text();
+			data.leave_circuit_u = await (await fetch("/leave_circuit")).text();
+
+			data.status_u = await (await fetch("/isauto")).text() === "true" ? "Running" : "Idle";
+		}
+
+
+		var app = new Vue({
+			el: '#app',
+			data
+		});
+
+		// Related to cam.
+		function animate(b){
+			b.click();
+			b.className = "key active";
+			setTimeout(() => {
+				b.className = "key";
+			},300);
+		}
+
+		let i = 0;
+		async function refreshMinimap(){
+			minimap.src = "/minimap?refresh" + i;
+			i += 1;
+			if(data.status_u != "Not connected"){
+				cam_img.src = "http://"+data.raspberry_ip + "/pic?refresh" + i; 
+				cam_img.className = "";
+			}else{
+				cam_img.src = "static/loading.png";
+			}
+		}
+		setInterval(() => {
+			refreshMinimap();
+		},800);
+
+		addEventListener('keydown', async (e) => {
+			if(e.code === "KeyA"){
+				animate(button_left);
+				fetch("/left");
+			}
+			if(e.code === "KeyD"){
+				animate(button_right);
+				fetch("/right");
+			}
+			if(e.code === "KeyW"){
+				animate(button_forward);
+				fetch("/forward");
+			}
+			if(e.code === "KeyS"){
+				animate(button_backward);
+				fetch("/backward");
+			}
+		});
+
+		// Related to the buttons
+
+		async function connect(){
+			let r = await fetch("/set_ip/" + data.raspberry_ip);
+			let t = await r.text();
+			console.log(t);
+			if(t === "ok"){
+				data.raspberry_ip_u = data.raspberry_ip;
+				toast("Connected to "+data.raspberry_ip);
+				data.status_u = "Idle";
+				init_data();
+			}else{
+				toast("Invalid IP, unable to connect.");
+			}
+		}
+		async function update_speed(){
+			fetch("/speed/" + data.speed);
+			data.speed_u = data.speed
+		}
+		async function update_manualp(){
+			fetch("/manualp/" + data.manualp);
+			data.manualp_u = data.manualp;
+		}
+		async function update_steer_ratio(){
+			fetch("/steer_ratio/" + data.steer_ratio);
+			data.steer_ratio_u = data.steer_ratio;
+		}
+		async function update_target_distance(){
+			fetch("/target_distance/" + data.target_distance);
+			data.target_distance_u = data.target_distance;
+		}
+		async function update_move_mode(){
+			fetch("/mode/" + data.move_mode);
+			data.move_mode_u = data.move_mode;
+		}
+		async function update_zone_top(){
+			fetch("/zone_top/" + data.zone_top);
+			data.zone_top_u = data.zone_top;
+		}
+		async function update_zone_bottom(){
+			fetch("/zone_bottom/" + data.zone_bottom);
+			data.zone_bottom_u = data.zone_bottom;
+		}
+		async function update_zone_width(){
+			fetch("/zone_width/" + data.zone_width);
+			data.zone_width_u = data.zone_width;
+		}
+
+		async function update_leave_circuit(){
+			fetch("/leave_circuit/" + data.zone_width);
+			data.leave_circuit_u = data.leave_circuit=!1 ? "False" : "True";
+		}
+
+		async function start_auto(){
+			if(data.status_u === "Running"){
+				// cancel
+				let r = await fetch("/abort")
+				toast("Move aborted. Be careful, this might leave the server is an inconsistent state");
+				data.status_u = "Idle"
+			}else{
+				// start auto
+				let tarr = data.raw_target.split(",");
+				data.xtarget_u = parseInt(tarr[0]);
+				data.ytarget_u = parseInt(tarr[1]);
+				toast();
+				let r = await fetch("/auto?destination="+data.xtarget_u+data.ytarget_u+"&start=00&direction=S")
+				toast(await r.text());
+				data.status_u = "Running"
+			}
+		}
+	</script>
+</body>
+</html>

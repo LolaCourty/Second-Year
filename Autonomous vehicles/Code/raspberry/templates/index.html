@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>Vroum Controller</title>
+	<style>
+		body,html{
+			margin: 0;
+			padding: 0;
+		}
+		body{
+			
+		}
+		*{
+			font-family: Helvetica;
+		}
+		h1{
+			margin: 0;
+		}
+		header{
+			padding: 10px;
+			width: 100%;
+			background-color: #a0e;
+			text-align: center;
+		}
+		.makecenter{
+			align-items: center;
+			justify-content: center;
+			display: flex;
+			width: 100%;
+			height: 100%;
+		}
+		button{
+			background-color: white;
+			padding: 5px;
+			outline: none;
+			border: 1px solid black;
+			font-size: 20px;
+			transition: 500ms;
+		}
+		button:active{
+			background-color: blue;
+		}
+		.padded{
+			padding: 10px;
+		}
+		.pretty{
+			background-color: blue;
+		}
+	</style>
+	<script>
+		console.log("Hello, world");
+	</script>
+</head>
+<body>
+	<header>
+		<h1>Vroum Controller</h1>
+	</header>
+	<div class="makecenter">
+		<div>
+			<img id="img" src="/pic">
+			<div>
+				Use ZQSD/Arrow keys to control the robot.
+			</div>
+			<div class="makecenter">
+				<div class='padded'>
+					<div>
+						<button id="button_left">Left</button>
+						<button id="button_forward">Forward</button>
+						<button id="button_backward">Backward</button>
+						<button id="button_right">Right</button>
+					</div>
+					<div>
+						<input placeholder="Choose destination" type="number"/>
+						<button id="button_automatic">Goto target !</button>
+					</div>
+					<div>
+						<h2>Navigation Settings</h2>
+						<input placeholder="Choose zone width (300 is default)" id="zone_width_val" type="number"/>
+						<button id="button_zone_width">Set</button>
+						<br/>
+						<input placeholder="Speed (100 is max)" id="speed_val" type="number"/>
+						<button id="button_speed">Set</button>
+						<br/>
+						<input placeholder="Steer ratio (100 is default)" id="steer_val" type="number"/>
+						<button id="button_steer">Set</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		button_left.onclick = async () => {
+			let r = await fetch("/left");
+			console.log(r);
+		}
+		button_right.onclick = async () => {
+			let r = await fetch("/right");
+			console.log(r);
+		}
+		button_forward.onclick = async () => {
+			let r = await fetch("/forward");
+			console.log(r);
+		}
+		button_backward.onclick = async () => {
+			let r = await fetch("/backward");
+			console.log(r);
+		}
+		button_zone_width.onclick = async () => {
+			let v = Math.floor(zone_width_val.value);
+			fetch("/zone_width/" + v);
+		}
+		button_speed.onclick = async () => {
+			let v = Math.floor(speed_val.value);
+			fetch("/speed/" + v);
+		}
+		button_steer.onclick = async () => {
+			let v = Math.floor(steer_val.value);
+			fetch("/steer_ratio/" + v);
+		}
+
+		let isAuto = false;
+		button_automatic.onclick = async () => {
+			if(!isAuto){
+				let r = await fetch("/auto");
+				isAuto = true;
+				button_automatic.innerHTML = "Cancel movement"
+			}else{
+				let r = await fetch("/abort");
+				isAuto = false;
+				button_automatic.innerHTML = "Goto target !"
+			}
+		}
+
+		var i = 0;
+		async function draw(){
+			img.src = "/pic?refresh" + i;
+			i += 1;
+		}
+		async function autoUpdate(){
+			let r = await fetch("/isauto");
+			let content = await r.text();
+			if(content === "true" && !isAuto){
+				isAuto = true;
+				button_automatic.innerHTML = "Cancel movement"
+			}else if(content === "false" && isAuto){
+				isAuto = false;
+				button_automatic.innerHTML = "Goto target !"				
+			}
+		}
+
+		setInterval(() => {
+			autoUpdate();
+		},1000);
+		setInterval(() => {
+			draw();
+		},700);
+
+		function animate(b){
+			b.click();
+			b.className += "pretty";
+			setTimeout(() => {
+				b.className = "";
+			},500);
+		}
+
+		addEventListener('keydown', (e) => {
+			console.log(e.code);
+			if(e.code === "KeyA" || e.code === "ArrowLeft"){
+				animate(button_left);
+			}
+			if(e.code === "KeyD" || e.code === "ArrowRight"){
+				animate(button_right);
+			}
+			if(e.code === "KeyW" || e.code === "ArrowUp"){
+				animate(button_forward);
+			}
+			if(e.code === "KeyS" || e.code === "ArrowDown"){
+				animate(button_backward);
+			}
+		})
+
+	</script>
+</body>
+</html>

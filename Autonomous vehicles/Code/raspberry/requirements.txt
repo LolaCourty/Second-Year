@@ -1,0 +1,5 @@
+flask
+opencv-python
+picamera
+robust_serial
+requests
